@@ -1,0 +1,121 @@
+---
+title: "DA5030_Assignment1_Sun"
+author: "Mengyue Sun"
+date: "9/22/2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+1. Import the data
+```{r}
+library(tidyverse)
+library(readxl)
+myData <- read_excel(
+  "/Users/sunmengyue/Dropbox/2. Northeastern Unviersity/Fall2018/DA 5030 DataMining and Machine Learning/week 2/homework1/customertxndata.xlsx"
+)
+head(myData)
+
+```
+
+2. Calculate the following summative statistics: total number of cases, mean number of visits, median revenue, maximum and minimum number of transactions, most commonly used operating system. Exclude any cases where there is a missing value.
+```{r 2}
+str(myData)
+#Assign proper column names to the dataset
+colnames(myData) <- c("visitNum", "transNum", "opSys", "gender", "revenue")
+
+#replace the string NA with actual NA
+myData[myData == "NA"] <- NA 
+
+#transform transaction number from string into numeric 
+myData$transNum <- as.numeric(myData$transNum)
+typeof(myData$transNum)
+
+#a. total number of cases after excluding missing cases
+nrow(na.omit(myData))
+
+#b. mean number of visits 
+mean(myData$visitNum, na.rm = TRUE)
+
+#c. median revenue
+median(myData$revenue, na.rm = TRUE)
+
+#d. maximum and minimum number of transactions
+#maximum transaction number:
+max(myData$transNum, na.rm = TRUE)
+#minimum transaction number:
+min(myData$transNum, na.rm = TRUE)
+
+#most commonly used operating system
+table(myData$opSys)
+#from the frequency table we know that the most commonly used operating system is Android
+```
+
+3. Create a scatterplot of number of visits (x-axis) versus revenue (y-axis). Comment on the correlation between the two variables.
+```{r}
+# a scatterplot of number of visits (x-axis) versus revenue (y-axis)
+library(ggplot2)
+ggplot(na.omit(myData), aes(x = visitNum, y = revenue)) + geom_jitter()
+```
+In general, the revenue increase as the number of visits goes up.When the visit number equal to or below 16 times, the maximum revenue stays at about 500 dollars and the minimum revenue is around 100 dollars.The maximum revenue reaches 2000 dollars and the minimum revenue stays at around 270 dollars when visit number is between 18 - 19 times and between 23 - 25 times. The minumum revenue stats about 200 dollars when the visit time is between 19 - 22 times. 
+
+4.Which columns have missing data? How did you recognize them? How would you impute missing values?
+```{r}
+#identify which column(s) has/have missing data
+colnames(myData)[colSums(is.na(myData)) > 0]
+```
+I will use the median of transaction number to impute the missing transaction and impute the missing gender value with mode in the gender
+
+5.Impute missing transaction and gender values.
+```{r 5}
+median(myData$transNum, na.rm = TRUE)
+myData$transNum[is.na(myData$transNum)] <- 1
+#check if all the NAs are imputed
+table(is.na(myData$opSys))
+
+#get the mode of gender
+table(myData$gender)
+
+#We can see most of the customers are male, so we will impute the missing gender with mald
+myData$gender[is.na(myData$gender)] <- "Male"
+
+#check if all the NAs are imputed
+table(is.na(myData$gender))
+#We see there is no na in the gender column now
+
+table(myData$gender)
+#also, the number of male custormers increased after imputation
+```
+
+6.Split the data set into two equally sized data sets where one can be used for training a model and the other for validation. Take every odd numbered case and add them to the training data set and every even numbered case and add them to the validation data set, i.e., row 1, 3, 5, 7, etc. are training data while rows 2, 4, 6, etc. are validation data.
+```{r}
+odd <- seq(from = 1, to = 22799, by = 2)
+even <- seq(from = 2, to = 22800, by = 2)
+
+#Assign odd-numbered rows into training dataset (using the dplyr package inside tidyverse)
+training <- slice(myData, odd)
+
+#Assign even-numbered rows into validation set
+validation <- slice(myData, even)
+```
+
+7.Calculate the mean revenue for the training and the validation data sets and compare them. Comment on the difference.
+```{r}
+#Calculate the mean revenue for the training data set
+mean(training$revenue)
+#Calculate the mean revenue for the validation data set
+mean(validation$revenue)
+```
+We can see the means revenue in the training(449.61) and the validation(460.26) data sets are very similar. 
+
+8.For many data mining and machine learning tasks, there are packages in R. Find at least one package that has functions for creating training and validation data subsets and show how to use them.
+```{r}
+# modelr package is a part of the tidyverse package, but not loaded when the tidyverse package is loaded
+library(modelr)
+
+#use resample_partition to create training and validation datasets
+trainVal <- resample_partition(myData, c(train = 0.6, valid = 0.4))
+trainVal
+```
