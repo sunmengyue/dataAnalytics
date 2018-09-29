@@ -40,3 +40,6 @@ tail(df)
 n <- nrow(df)
 Forcast <- df$Ft[n] + 0.3 * df$E[n]
 Forcast
+
+mean(df$E)
+
