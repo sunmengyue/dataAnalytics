@@ -1,0 +1,108 @@
+---
+title: "Assignment2"
+author: "Mengyue Sun"
+date: "9/29/2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+1. The built-in dataset USArrests contains statistics about violent crime rates in the US States. Determine which states are outliers in terms of assaults. Outliers, for the sake of this question, are defined as values that are more than 1.5 standard deviations from the mean.
+
+```{r}
+library(tidyverse)
+str(USArrests)
+USArrests2 <- mutate(USArrests, stateNames = row.names(USArrests) )
+#Find outliers in assaults
+average <- mean(USArrests2$Assault)
+std <- sd(USArrests2$Assault)
+outliers <- filter(USArrests2, Assault > 1.5 * std + average)
+outliers$stateNames
+```
+We can see that Florida, Maryland, and North Carolina are outliers in terms of assaults.
+
+2.For the same dataset as in (1), is there a correlation between murder and assault, i.e., as one goes up, does the other statistic as well? Comment on the strength of the correlation. Calculate the Pearson coefficient of correlation in R.
+```{r}
+cor.test(USArrests2$Murder, USArrests2$Assault, method = "spearman")
+```
+There is a very strong positive correlation between murder and assaults.
+
+3.Based on the data on the growth of mobile phone use in Brazil (you'll need to copy the data and create a CSV that you can load into R), forecast phone use for the next time period using a simple moving average, a 3-year weighted moving average (with weights of 4 for the most recent year, and 1 for the others), exponential smoothing (alpha of 0.2), and linear regression trendline.
+```{r}
+library(readxl)
+phoneUse <- read_excel("/Users/sunmengyue/Dropbox/2. Northeastern Unviersity/Fall2018/DA 5030 DataMining and Machine Learning/Week3/Brazildata.xlsx")
+#Use a 3-year moving average to predict the next month
+n <- nrow(phoneUse)
+last3 <- phoneUse[n : (n - 2), 2]
+mean(last3$Subscribers)
+
+# 3-year weighted moving average
+w <- c(4, 1, 1)
+sw <- last3 * w
+F <- sum(sw$Subscribers) / sum(w)
+F
+
+#exponential smoothing
+phoneUse2 <- mutate(phoneUse, Ft = 0, E = 0)
+phoneUse2$Ft[1] <- phoneUse2$Subscribers[1]
+for (i in 2 : nrow(phoneUse)) {
+  phoneUse2$Ft[i] = phoneUse2$Ft[i - 1] + 0.2 * phoneUse2$E[i - 1]
+  phoneUse2$E[i] = phoneUse2$Subscribers[i] - phoneUse2$Ft[i]
+}
+subscriber12 <- phoneUse2$Ft[11] + 0.2 * phoneUse2$E[11]
+subscriber12
+
+#linear regression trendline
+ggplot(phoneUse, aes(x = Year, y = Subscribers)) + geom_line()
+model <- lm(phoneUse$Subscribers ~ phoneUse$Year)
+summary(model)
+# subscriber = -15710760 + 18276748 * year, so at the 12th year:
+subscriberYear12 <- -15710760 + 18276748 * 12
+subscriberYear12
+```
+
+4. Calculate the average mean squared error for each model, i.e., use the model to calculate a forecast for each given time period and then the error.
+```{r}
+#MSE in the moving average model, mean(last3$Subscribers) is the last 3 year moving average
+#add a squared erro column using the mutate() function in dplyr, and save it to the phoneUseMA_SE table
+phoneUseMA_SE <- mutate(phoneUse, sqErr = (Subscribers - mean(last3$Subscribers))^2)
+phoneUseMA_SE
+#create a new variable named phoneUseMA_MSE to save the mean square error
+phoneUseMA_MSE <-mean(phoneUseMA_SE$sqErr) 
+phoneUseMA_MSE
+
+#MSE in the 3-year weighted moving average, F is the 3 year weighted moving average
+phoneUseWMA_SE <- mutate(phoneUse, sqErr = (Subscribers - F)^2)
+phoneUseWMA_SE
+
+phoneUseWMA_MSE <- mean(phoneUseWMA_SE$sqErr)
+phoneUseWMA_MSE
+
+#MSE in the exponential smoothing method, subscriber12 is the subscribers predicted in the 12th year using exponential smoothing method
+phoneUseES_SE <- mutate(phoneUse, sqErr = (Subscribers - subscriber12)^2)
+phoneUseES_SE
+
+phoneUseES_MSE <- mean(phoneUseES_SE$sqErr)
+phoneUseES_MSE
+
+#MSE using linear regression trendline, subscriberYear12 is the subscribers predicted in the 12th year using linear regression
+phoneUselr_SE <- mutate(phoneUse, sqErr = (Subscribers - subscriberYear12)^2)
+phoneUselr_SE
+
+phoneUselr_MSE <- mean(phoneUselr_SE$sqErr)
+phoneUselr_MSE
+```
+5. Which model has the smallest mean squared error (MSE)?
+By comparing the MSE within each model, we know that the exponential smoothing model has the least MSE (4.354656e+15).
+
+6.Calculate a weighted average forecast by averaging out the three forecasts calculated in (3) with the following weights: 3 for trend line, 2 for exponential smoothing, 1 for weighted moving average. Remember to divide by the sum of the weights in a weighted average.
+```{r}
+#subscriberYear12 is the subscribers predicted in the 12th year using linear regression,
+#subscriber12 is the subscribers predicted in the 12th year using exponential smoothing,
+#F is the 3 year weighted moving average
+weightSum <- 3 + 2 + 1
+weightedAve <- (3 * subscriberYear12 + 2*subscriber12 + F)/weightSum
+weightedAve
+```
+
