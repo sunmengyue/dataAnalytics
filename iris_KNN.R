@@ -21,3 +21,17 @@ irisn <- as.data.frame(lapply(iris[, c(1:4)], normalize))
 head(irisn)
 str(irisn)
 summary(irisn)
+
+#seperate the training and test dataset
+irisTrain <- irisn[1 : 129, ]
+irisTest <- irisn[130 : 150, ]
+irisTrainTarget <- iris[1 : 129, 5]
+irisTestTarget <- iris[130 : 150, 5]
+library(class)
+#get the k. It is better to use an odd number
+m1 <- knn(train = irisTrain, test = irisTest, cl = irisTrainTarget, k = 13)
+# what stored in m1 is the prediction of all the values in the test dataset
+#now draw a confusion matrix
+table(irisTestTarget, m1)
+#the diagnal from left top to the right bottom are correctly predicted numbers. Values fall beyond the area
+  #are not correctly predicted. In our case, 2 virginica were actually versicolor
