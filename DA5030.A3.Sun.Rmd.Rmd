@@ -1,0 +1,150 @@
+---
+title: "Assignment3_Sun"
+author: "Mengyue Sun"
+date: "10/14/2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Case Study: Detecting Prostate Cancer
+## Step 1. Data Collection & Step 2. Preparing and exploring the data
+```{r }
+setwd("/Users/sunmengyue/Dropbox/2. Northeastern Unviersity/Fall2018/DA 5030 DataMining and Machine Learning/Assignment3") #set the working directory
+prc <- read.csv("prostate_cancer (1).csv", stringsAsFactors = FALSE) #import the data
+str(prc) #check the data structure
+```
+remove the first column, id and add an diagnosis column:
+```{r }
+prc <- prc[-1] 
+head(prc)
+table(prc$diagnosis_result) #check how many cases under each value of the diagnosis_result column
+prc$diagnosis <- factor(prc$diagnosis_result, levels = c("B", "M"), labels = c("Benign", "Malignant"))
+round(prop.table(table(prc$diagnosis)) * 100, digits = 1) #result in the percentage form will round to 1 decimal point
+```
+
+Normalizing Numeric Data
+```{r }
+#create a function naming "normalize"
+normalize <- function(x) {
+  return( (x - min(x)) / (max(x) - min(x)) )
+} 
+
+prc_n <- as.data.frame(lapply(prc[2:9], normalize)) #apply the normalize function to the 2nd to 9th column of the original data and transform it into a data frame
+summary(prc_n$radius)
+```
+
+Create Training and Test Dataset
+```{r }
+prc_train <- prc_n[1:65, ]
+prc_test <- prc_n[66:100, ]
+```
+
+Create the Outcome Variables
+```{r}
+prc_train_labels <- prc[1:65, 1]
+prc_test_labels <- prc[66:100, 1]
+```
+
+##Step 3. Training a Model on Data
+```{r }
+library(class)
+prc_test_pred <- knn(train = prc_train, test = prc_test, cl = prc_train_labels, k = 10)
+```
+
+##Step 4. Evaluate the Model Performance
+```{r }
+library(gmodels)
+CrossTable(x = prc_test_labels, y = prc_test_pred, prop.chisq = FALSE)
+```
+The test data is consisted of 35 observations, among which 7 cases have been accurately predicted  as Benign (B) (true negative, TN) which constitutes 20% (7/35). Meanwhile, 15 out of the 35 observations were accurately predicted as Malignant (M) (true positive, TP) in nature which constitutes 42.9% (15/35). 
+
+There was 1 case of False Negatives (FN), referring to the case actually is malignant in nature but was predicted as benign. The FN rate is 2.9% (1 / 35). The main focus it to reduce the FN and increase the accuracy of the model. 
+
+There were 12 cases of False Positives (FP),  meaning that there are 12 cases were actually benign in nature but were predicted as malignant.
+
+The total accuracy of the model is 62.9 %( (15 + 7)/35). There might be a chance to improve the model performance.
+
+## Step 5. Improve the Performace of the Model
+We are going to try the k value from 8 to 12. Meanwhile, we will try to keep the FN as low as possible and also improve the total accuracy of the model
+When k = 8:
+```{r }
+prc_test_pred8 <- knn(train = prc_train, test = prc_test, cl = prc_train_labels, k = 8)
+CrossTable(x = prc_test_labels, y = prc_test_pred8, prop.chisq = FALSE)
+```
+TN: 8 / 35 = 22.9%
+TP: 15 / 35 = 42.9%
+FN: 1 / 35 = 2.9%
+Total accuracy: (8 + 15) / 35 = 65.7%
+When k = 8, the TN increases to 22.9%, the TP, FN are the same as the model of k = 10. The total accuracy increases to 65.7%.
+
+When k = 9
+```{r }
+prc_test_pred9 <- knn(train = prc_train, test = prc_test, cl = prc_train_labels, k = 9)
+CrossTable(x = prc_test_labels, y = prc_test_pred9, prop.chisq = FALSE)
+```
+TN: 8 / 35 = 22.9%
+TP: 16 / 35 = 45.7%
+FN: 0
+Total accuracy: (8 + 16) / 35 = 68.6%
+When k = 9, the TN increases to 22.9%, the TP increases to 45.7%, FN decrease to 0 cases. The total accuracy increases to 68.6%.
+
+When k = 11
+```{r }
+prc_test_pred11 <- knn(train = prc_train, test = prc_test, cl = prc_train_labels, k = 11)
+CrossTable(x = prc_test_labels, y = prc_test_pred11, prop.chisq = FALSE)
+```
+TN: 5 / 35 = 14.3%
+TP: 16 / 35 = 45.7%
+FN: 0
+Total accuracy: (5 + 16) / 35 = 60%
+When k = 11, the TN decreases to 14.3%, the TP increases to 45.7%, FN decrease to 0 cases. The total accuracy decreases to 60%.
+
+When k = 12:
+```{r }
+prc_test_pred12 <- knn(train = prc_train, test = prc_test, cl = prc_train_labels, k = 12)
+CrossTable(x = prc_test_labels, y = prc_test_pred12, prop.chisq = FALSE)
+```
+TN: 5 / 35 = 14.3%
+TP: 16 / 35 = 45.7%
+FN: 0
+Total accuracy: (5 + 16) / 35 = 60%
+When k = 12, all the resutls stay the same as the model of k = 11.
+Thus, when k is in the range of 8 to 12, we get the best total accuracy of 68.6%, the lowest FN of 0, when k is 9.
+
+#Using the Caret Package
+## Data Slicing
+```{r }
+library(caret)
+set.seed(1221)
+intrain <- createDataPartition(y = prc$diagnosis_result, p= 0.7, list = FALSE) #target variable is at V1, not returning a list
+training <- prc[intrain, ]
+testing <- prc[-intrain, ]
+str(training)
+str(testing)
+```
+
+## Training the Knn Model
+```{r }
+trctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 3)
+set.seed(1234)
+knn_fit <- train(diagnosis ~., data = training, method = "knn",
+                 trControl=trctrl,
+                 preProcess = c("center", "scale"),
+                 tuneLength = 10)
+knn_fit
+```
+From the knn_fit we can see that , when k = 7, the accruacy is the highest, which is 0.9765. Unlike the previous knn method in the class package, when k = 9 the accruacy reached the maximum. 
+
+``` {r }
+test_pred <- predict(knn_fit, newdata = testing)
+test_pred
+```
+
+## Evaluating the Model with Confusion Matrix
+```{r }
+ confusionMatrix(test_pred, testing$diagnosis)
+```
+The overall accuracy is 86.21% with a 95% CI of (0.6834, 0.9611), which is higher than the previous accracy 68.6%. 
