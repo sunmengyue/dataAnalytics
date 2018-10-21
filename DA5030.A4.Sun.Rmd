@@ -1,0 +1,195 @@
+---
+title: "Assignment 4"
+author: "Mengyue Sun"
+date: "10/21/2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Problem 1
+##Step1 and Step2 Data Collection and Exploring
+```{r} 
+setwd("/Users/sunmengyue/Dropbox/2. Northeastern Unviersity/Fall2018/DA 5030 DataMining and Machine Learning/Assignment4")
+sms_raw <- read.csv("sms_spam.csv", stringsAsFactors = FALSE)
+str(sms_raw)
+#transfer they type variable into factor
+sms_raw$type <- factor(sms_raw$type)
+str(sms_raw$type)
+table(sms_raw$type)
+```
+
+###Data Preparation-Cleaning and Standardizing Text Data
+```{r }
+library(tm)
+#create source object and transfer these object into corpus
+sms_corpus <- VCorpus(VectorSource(sms_raw$text))
+print(sms_corpus)
+
+#view the summary of the first and second SMS message in the corpus
+inspect(sms_corpus[1:2])
+
+#view the actual content of specific text message
+as.character(sms_corpus[[1]])
+
+#view multiple documents with lapply()
+lapply(sms_corpus[1:2], as.character)
+```
+
+Standardize the message to use only lower case characters
+```{r }
+sms_corpus_clean <- tm_map(sms_corpus, content_transformer(tolower))
+#check whether the command work
+as.character(sms_corpus[[1]])
+as.character(sms_corpus_clean[[1]])
+```
+
+1. Removing numbers from the SMS message
+```{r }
+#getTransformations() show functions other than removeNumbers that do not need to be wrapped by content_transformer()
+sms_corpus_clean <- tm_map(sms_corpus_clean, removeNumbers)
+```
+
+2. Removing stop words such as to, and but
+```{r }
+#type stopwords() to see the default list of stop words
+sms_corpus_clean <- tm_map(sms_corpus_clean, removeWords, stopwords())
+```
+
+3. Removing puctuations
+```{r }
+replacePuctuation <- function(x) {
+  gsub("[[:punct:]]+", " ", x)
+}
+sms_corpus_clean <- tm_map(sms_corpus_clean, replacePuctuation)
+```
+
+4. Reducing word to their root form (e.g. learning, learns, learnt -> learn)
+```{r }
+library(SnowballC)
+wordStem(c("learning", "learned", "learns", "learn"))
+sms_corpus_clean <- tm_map(sms_corpus_clean, stemDocument)
+```
+
+5.Remove additional white space
+```{r }
+sms_corpus_clean <- tm_map(sms_corpus_clean, stripWhitespace)
+
+#have a check of the actual content of specific message
+as.character(sms_corpus_clean[[1]])
+```
+
+###Data Preparation - Splitting Text Documents into Words
+Tokenization with DocumentTermMatrix()
+```{r }
+sms_dtm <- DocumentTermMatrix(sms_corpus)
+sms_dtm
+```
+
+###Data Preparation - Creating Training and Test Dataset
+```{r }
+sms_dtm_train <- sms_dtm[1 : 4181, ]
+sms_dtm_test <- sms_dtm[4182 : 5574, ]
+
+sms_train_labels <- sms_raw[1: 4181, ]$type
+sms_test_labels <- sms_raw[4182 : 5574, ]$type
+
+#confirm that subset are the whole SMS data
+prop.table(table(sms_train_labels))
+prop.table(table(sms_test_labels))
+```
+
+### Visualizing the text data: Word clouds
+```{r }
+library(wordcloud)
+spam <- subset(sms_raw, type == "spam")
+ham <- subset(sms_raw, type == "ham")
+#the scale parameter allows adjusting maximum and minimum font size
+wordcloud(spam$text, max.words = 40, scale = c(3, 0.5))
+wordcloud(ham$text, max.words = 40, scale = c(3, 0.5))
+```
+
+###Data preparation - creating indicator features for frequent words
+(transfrom the sparce matrix into data structure)
+```{r }
+#displaying words appearing at least 5 times
+sms_freq_words <- findFreqTerms(sms_dtm_train, 5)
+sms_dtm_freq_train<- sms_dtm_train[ , sms_freq_words]
+sms_dtm_freq_test <- sms_dtm_test[ , sms_freq_words]
+
+#convert counts into yes/no strings
+convert_counts <- function(x) {
+  x <- ifelse(x > 0, "Yes", "No")
+}
+
+sms_train <- apply(sms_dtm_freq_train, MARGIN = 2, convert_counts)#margin = 1 is for rows and margin = 2 is for  collumns
+sms_test <- apply(sms_dtm_freq_test, MARGIN = 2, convert_counts)
+```
+
+##Step 3. Training a model on Data
+```{r }
+library(e1071)
+sms_classifier <- naiveBayes(sms_train, sms_train_labels)
+```
+
+###Step 4. Evaluating Model Performance
+```{r }
+sms_test_pred <- predict(sms_classifier, sms_test)
+library(gmodels)
+CrossTable(sms_test_pred, sms_test_labels, prop.chisq = FALSE, 
+           prop.t = FALSE, dnn = c('predicted', 'actual'))
+```
+The table presents that (27 + 5) / 1393 = 2.3% of the SMS messages were incorrectly classified. Among the missclassfication 5 out of 1211 messages were misclassfied as spam and 27 out of 182 were ham. The total accuracy rate is (1206 + 155) / 1393 = 97.70%.
+
+### Step 5. Possibility in Improving the model performance
+```{r }
+#Set a value for the laplace estimator
+sms_classifier2 <- naiveBayes(sms_train, sms_train_labels, laplace = 1)
+sms_test_pred2 <- predict(sms_classifier2, sms_test)
+CrossTable(sms_test_pred2, sms_test_labels, prop.chisq = FALSE, prop.t = FALSE, prop.r = FALSE, dnn = c('predicted', 'actual'))
+```
+This time, the overall missclassification is (29 + 5) / 1393 = 2.44% and the overall accuracy rate is (1206 + 153) / 1393 = 97.6%. Both the rate of missclassfication and accuracy decrease a little bit compared with the previous method. So we will not set the laplace estimator and keep the original value in this case. 
+
+#Problem 2
+```{r }
+library(klaR)
+data(iris)
+
+#explore the dataset
+nrow(iris)
+summary(iris)
+head(iris)
+
+#data separation
+#every index of 5th, 10th, 15th .. will be the testing dataset 
+#the rest are in the training data set
+testidx <- which(1:length(iris[, 1]) %% 5 == 0)
+iristrain <- iris[-testidx, ]
+iristest <- iris[testidx, ]
+
+#apply naive bayes
+nbmodel <- NaiveBayes(Species~., data=iristrain)
+
+#check the accuracy
+prediction <- predict(nbmodel, iristest[ ,-5])
+table(prediction$class, iristest[ ,5])
+```
+From the table we can see that only 2 cases were misclassfied, 2 of the versicolor were missclassified as verginica.
+
+1. How would you make a prediction for a new case with the above package?
+We first apply the NaiveBayes() function to the column of interest to build a model,  then use the predict() function apply the model to the test dataset without the outcome column.
+
+2.How does this package deal with numeric features? 
+numeric features are included in the "formula" arguments of the NaiveBayes() function. The form of the formula is class ~ x1 + x2.... In the case above, the numeric features are all the features except for Species, so the formula is Species ~.
+
+
+3.How does it specify a Laplace estimator?
+Factor for Laplace correction is set in the "fL" arguments in the NaiveBayes() function. The default value of "fL" is 0. 
+
+##Problem 3
+What are Laplace estimators and why are they used in Naive Bayes classification? Provide an example of how they might be used and when. (You do not need to write any code. Instead explain their use in the R Notebook.)
+
+The Laplace estimator typically adds 1 to each of the counts in the frequency table so that non of the features has a probability of 0 occurring with each class.
+Suppose a message contains 3 words: sorry, hello, early. If free never occurs in the message, the probability of likelyhood of spam is (3/10) * (2/10) * (4/10) * (0/10) = 0. Suppose the likelyhood of ham is 0.005, the final probability of spam is 0/ (0 + 0.005) = 0 and the probability of ham is 0.005 / (0 + 0.005) = 1, which does not provide the appropriate predictive information we want. The laplace estimator adds 1 to each counts so the spam can be garanteed to not get an 0 in the final outcome. After adding one to each counts, the likelyhood of spam is (4/(10 + 3*1)) * (3 / (10 + 2*1)) * (5/ (10 + 4*1)) + (1 / (10 + 0*1)) =  0.0027.
