@@ -1,0 +1,111 @@
+---
+title: "Assignment 5"
+author: "Mengyue Sun"
+date: "10/27/2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Problem 1
+##Step 1 & Step 2: Collecting, Exploring and Preparing the Data
+```{r }
+credit <- read.csv("/Users/sunmengyue/Dropbox/2. Northeastern Unviersity/Fall2018/DA 5030 DataMining and Machine Learning/week 7/Assignment 5/credit .csv")
+str(credit)
+#replace "no" with "1" and "yes" with "2" in the code that for matrix_dimensions
+credit$default[credit$default == 1] <- 'No'
+credit$default[credit$default == 2] <- 'Yes'
+credit$default <- factor(credit$default)
+str(credit$default)
+table(credit$checking_balance)
+table(credit$savings_balance)
+summary(credit$months_loan_duration)
+summary(credit$amount)
+table(credit$default)
+
+```
+
+###Data Preparation - Creating Random Training and Test Datasets
+```{r }
+#generize random number for the training dataset
+set.seed(123)
+train_sample <- sample(1000, 900)
+str(train_sample)
+
+credit_train <- credit[train_sample, ]
+credit_test <- credit[-train_sample, ]
+
+#check the randomization
+prop.table(table(credit_train$default))
+prop.table(table(credit_test$default))
+```
+##Step 3. Training a Model on Data
+```{r }
+library(C50)
+credit_model <- C5.0(credit_train[-17], credit_train$default)
+credit_model
+summary(credit_model)
+```
+Translation of the first 4 lines of the output:
+1. If the checking account balance is greater than 200 DM or is unknown, then we classify it as "not likely to default."
+
+2. Otherwise, if the checking account balance is less than zero DM or between one and 200 DM:
+3. And other_debtors are guarantor:
+4. And the month loan duration is greater than 36, then we classify it as "likely to default."
+On the first line, 412/50 indicates that among the 412 examples classified as not likely to default, 50 were classified incorrectly.
+
+Translation of the confusion matrix:
+The model incorrectly classified 135 of the 900 training instances for an error rate of 15 percent. Among the 135 incorrectly classfied cases, 44 no values were incorrectly classified as yes (false positives), while 91 yes values were misclassified as no (false negatives).
+
+##Step 4. Evaluateing the Model Performance
+```{r }
+credit_pred <- predict(credit_model, credit_test)
+library(gmodels)
+CrossTable(credit_test$default, credit_pred, 
+           prop.chisq = FALSE, 
+           prop.c = FALSE, prop.r = FALSE, dnn = c('actual default', 'predicted   default'))
+```
+Among the 100 test loan application records, the model correctly predicted that 60 did not default and 14 did default, resulting in an accuracy of (60 + 14) /100 = 74%  and an error rate of (7 + 14) / 100 = 21%. Expectedly, the performance on the unseen tested data is worse than that on the training data. The model also only correctly predicted 14 of the 33 actual loan defaults in the test data. 
+
+##Step 5. Improving Model Performance
+```{r }
+credit_boost10 <- C5.0(credit_train[-17], credit_train$default, trials = 10)
+credit_boost10
+summary(credit_boost10) #The tree size shrunk
+```
+We can tell that the new classfier made 3 + 26 = 29 missclassfications out of 900 training samples for an error rate of 3.2%, which is quite an improvement compared to the previous 15%. 
+```{r }
+credit_boost_pred10 <- predict(credit_boost10, credit_test)
+
+CrossTable(credit_test$default, credit_boost_pred10, prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE, dnn = c('actual default', 'predicted default'))
+```
+Now we see that the total accuracy rate is (60 + 16) / 100 = 76% versus the total error rate of (7 + 17) / 100 = 24%. The model is still not doing well as the 3% increasement in error rate. 
+
+###Making mistakes more costlier than others
+```{r}
+#construct the cost matrix
+matrix_dimensions <- list(c("No", "Yes"), c("No", "Yes"))
+names(matrix_dimensions) <- c("predicted", "actual")
+matrix_dimensions
+```
+The values are supplied in specific order
+Predicted no, actual no
+Predicted yes, actual no
+Predicted no, actual yes
+Predicted yes, actual yes
+```{r}
+error_cost <- matrix(c(0, 1, 4, 0), nrow = 2, dimnames = matrix_dimensions)
+error_cost
+```
+There is no cost when the algorithm classifies a no or yes correctly, yet false negative has a cost of 4 versus a false positive's cost of 1. We will see how this impact the classification:
+```{r}
+credit_cost <- C5.0(credit_train[-17], credit_train$default, costs = error_cost)
+credit_cost_pred <- predict(credit_cost, credit_test)
+CrossTable(credit_test$default, credit_cost_pred, 
+           prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE, dnn = c('actual default', 'predicted default'))
+```
+The error rate boosts significantly in this version, which is (34 + 7) / 100 = 41% 
+
+#Problem 2.
