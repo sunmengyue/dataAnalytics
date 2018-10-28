@@ -149,3 +149,23 @@ summary(mushroom_JRip)
 This time we see no mushrooms are misclassified.
 
 #Problem 3
+##KNN
+*The advantage of KNN include it is easy to understand and implement. It works well on small dataset.
+As the KNN assumes that the data are connected in a feature space, then data points belongs to the same category are close in distance. For example, all mammals are closely connected and all fishes are closely linked. 
+*The disadvantage of KNN is that when there is a large number of unlabled neighbors, the computational costs increases and the running time is high. Also, the space complexity can be high to calculate large number of unlabled neighbors. 
+
+##Naive Bayes
+*The advantage of Naive Bayes is that it is a great choice for text classification. For example, we can use Navive Bayes to predict whether a message is spam or ham.
+*The disadvantage of Naive Bayes is that it assumes that the feature are independent. However, if features are correlated with each other, the performance of naive bayes decrease.  
+
+##C5.0 Decision Tree
+*The advantage of using decision trees is that the flow chart of data classfication is easy to understand and interpret.
+Suppose we are predicting whether we will be late or not for work based on the time we leave home. Leaving before 7:00 will not lead to tardiness, yet leaving after 7:00 will belate. We can further break down the time point at before and after 6:45 and before and after 7:30. 
+*However, how decision trees perform highly depend on the features chosen. If highly relevent or interactive features exist, then the performance of the decision tree will decrease.
+Given the last example, if there is one more feature named traffic in the model, then there is a relationship between traffic and the time we leave home. If we also take the season into consideration, we will find the traffic is also correlated with the season. More complicated relations increases as relevant features increase such as wether, road construction, etc. 
+*Also, the decision trees can be easily overfit.
+For instance, if wake up time was plot against age and the age group was devided to narrowly that not only the trend was captured but also the noise in the given data set was put into consideration. The model will be less helpful in new data. 
+
+##RIPPER RULE
+*The RIPPER RULE is easy to understand because it follows the logic pattern of "if....then". For instance, if an animal can fly and it has beak and feather, then it is a bird. 
+*The diadvantage of ripper rule is that the features are usually categorical. If you have continuous numeric variable, you need to set the feature into groups and transfer them into categorical. For example, if you want to predict the type of trees based on the altitude they grow, you need to group the altitudes first. 
