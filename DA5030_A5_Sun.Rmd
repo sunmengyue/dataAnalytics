@@ -109,3 +109,43 @@ CrossTable(credit_test$default, credit_cost_pred,
 The error rate boosts significantly in this version, which is (34 + 7) / 100 = 41% 
 
 #Problem 2.
+##Step 1 & 2 Collecting, Exploring, and Preparing the Data
+```{r }
+mushrooms <- read.csv("/Users/sunmengyue/Dropbox/2. Northeastern Unviersity/Fall2018/DA 5030 DataMining and Machine Learning/week 7/Assignment 5/mushrooms.csv", stringsAsFactors = TRUE)
+str(mushrooms)
+#drop the veil_type variable
+mushrooms$veil_type <- NULL
+table(mushrooms$type)
+#4208 of the mushrooms are edible, while 3916 are poisonous.
+```
+
+##Step 3. Training the Model on the Data
+```{r }
+library(RWeka)
+mushroom_1R <- OneR(type ~ ., data = mushrooms)#consider all possible features
+mushroom_1R
+```
+The odor feature was selected for rule generation. If the mushroom smells fishy, foul, musty, pungent, spicy, or creosote-like, the mushroom tend to be poisonous. On the other hand, if the mushroom smells like almond and anise, or those with no smell are predicted to be edible.
+
+##Step 4. Evaluating the Model Performance
+```{r}
+summary(mushroom_1R)
+```
+The classifier did not classify any edible mushrooms as poisonous, it classify 120 poisonous mushrooms as edible.
+
+##Step 5. Improving Model Performance
+```{r}
+mushroom_JRip <- JRip(type ~ ., data = mushrooms)
+mushroom_JRip
+```
+The first 3 line can be translated as:
+If the odor is foul, then the mushroom type is poisonous.
+If the gill size is narrow and the gill color is buff, then the mushroom type is poisonous.
+If the gill size is narrow and the odor is pungent, then the mushroom type is poisonous
+Mushrooms not covered by the 9 rules are edible.
+```{r }
+summary(mushroom_JRip)
+```
+This time we see no mushrooms are misclassified.
+
+#Problem 3
