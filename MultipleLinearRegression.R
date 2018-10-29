@@ -42,7 +42,7 @@ summary(m4)
 m5 <- lm(mpg ~ wt + qsec + am, data = mtcars )
 summary(m5)
 #m5 is the final model
-
+mpgPred <- 9.6178 - 3.9165 * mtcars$wt + 1.2259 * mtcars$qsec + 2.9358 * mtcars$am
 #predict the model
 mpgs <- predict(m5, mtcars[c(6, 7, 9)])
 head(mpgs)
@@ -52,3 +52,12 @@ msqerr <- mean(sqerr)
 rmse <- sqrt(msqerr)
 rmse
 #The rmse is used to compare with other model
+
+#Confidence interval for a forecast
+#95% CI:mpgPred +- 1.96*SE
+#1.96 is the z score for p = 0.95
+
+#if the range for the 95% is large, you can try the 90% interval
+#90% CI:mpgPred +- 1.65*SE
+#The range is narrower, yet we are less confident
+
