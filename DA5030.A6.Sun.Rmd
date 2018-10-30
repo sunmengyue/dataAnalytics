@@ -1,0 +1,81 @@
+---
+title: "Assignment 6"
+author: "Mengyue Sun"
+date: "10/29/2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Problem 1
+```{r}
+math <- read.csv("/Users/sunmengyue/Dropbox/2. Northeastern Unviersity/Fall2018/DA 5030 DataMining and Machine Learning/week8/student/student-mat.csv", header = TRUE, sep = ";")
+str(math)
+summary(math)
+```
+
+1. Create scatter plots and pairwise correlations between age, absences, G1, and G2 and final grade (G3) using the pairs.panels() function in R.
+```{r}
+library(psych)
+pairs.panels(math[c("age", "absences", "G1", "G2", "G3")])
+```
+
+2. Build a multiple regression model predicting final math grade (G3) using as many features as you like but you must use at least four. Include at least one categorical variables and be sure to properly convert it to dummy codes. Select the features that you believe are useful -- you do not have to include all features.
+```{r }
+#creating dummy variable on the features of reason and guardian
+library(fastDummies)
+math2 <- dummy_cols(math)
+myModel <- lm(G3 ~ school + age + reason + guardian + absences + traveltime + studytime + G1 + G2, data = math2)
+summary(myModel)
+```
+
+3. Using the model from (2), use stepwise backward elimination to remove all non-significant variables and then state the final model as an equation. State the backward elimination measure you applied (p-value, AIC, Adjusted R2). This tutorial shows how to use various feature elimination techniques.
+```{r}
+#backward tracking
+step(lm(G3 ~ school + age + reason + guardian + absences + traveltime + studytime + G1 + G2, data = math2), direction = "backward")
+```
+The backward method indicates that we only include age, G1, absences, and G2 as the lowest AIC got in this model. The final model got with these variables is:
+G3 = 1.0927 - 0.1880 * age + 0.0415 * absences + 0.1701 * G1 + 0.9679 * G2
+
+```{r }
+#forward tracking
+step(lm(G3 ~ 1 , data = math2), direction = "forward", scope = ~ school + age + reason + guardian + absences + traveltime + studytime + G1 + G2)
+```
+The forward tracking finally gets the same variable chosen as those in backward tracking.
+The final model is the same as that in backward tracking.
+
+```{r}
+#using both method
+step(lm(G3 ~ school + age + reason + guardian + absences + traveltime + studytime + G1 + G2, data = math2), direction = "both")
+```
+The method using both back tracking and forward tracking get the same variable and same model as above.
+```{r}
+#final model
+myModel2 <- lm(G3 ~ age + absences + G1 + G2, data = math2)
+summary(myModel2)
+```
+
+4. Calculate the 95% confidence interval for a prediction -- you may choose any data you wish for some new student.
+For a new student whose age is 17, number of school absence is 10, the first period grade is 14, and the second period of grade is 19, the third period of grade is:
+```{r}
+scorePred <-  1.0927 - 0.1880 * 17 + 0.0415 * 10 + 0.1701 * 14 + 0.9679 * 19
+scorePred
+```
+The 95% interval is scorePred + or - 1.96 * SE
+```{r}
+lowerBound <- 19.0832 - 1.96 * 1.906 
+lowerBound
+upperBound <- 19.0832 + 1.96 * 1.906 
+upperBound
+```
+The 95% interval is [15.35, 22.82]
+
+5. What is the RMSE for this model -- use the entire data set for both training and validation.  
+```{r}
+sqerr <- (math2$G3 - scorePred)^2
+msqerr <- mean(sqerr)
+rmse <- sqrt(msqerr)
+rmse
+```
