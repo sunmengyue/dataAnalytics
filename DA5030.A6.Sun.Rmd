@@ -79,3 +79,39 @@ msqerr <- mean(sqerr)
 rmse <- sqrt(msqerr)
 rmse
 ```
+
+#Problem 2
+1. Using the same data set as in Problem (1), add another column, PF -- pass-fail. Mark any student whose final grade is less than 10 as F, otherwise as P and then build a dummy code variable for that new column. Use the new dummy variable column as the response variable.
+```{r }
+library(tidyverse)
+math2 <- mutate(math2, PF = ifelse(G3 < 10, "F", "P"))
+math2$PF <- factor(math2$PF)
+math3 <- dummy_cols(math2, select_columns = "PF")
+str(math3)
+#F is 1 and P is 0
+```
+2. Build a binomial logistic regression model classifying a student as passing or failing. Eliminate any non-significant variable using an elimination approach of your choice. Use as many features as you like but you must use at least four -- choose the ones you believe are most useful.
+```{r}
+testGlm <- glm(PF_F ~ G1 + G2 + romantic + studytime, 
+               data = math3, family = binomial)
+summary(testGlm)
+
+#Eliminate non-significant variables
+testGlm2 <- glm(PF_F ~ G2, data = math3, family = binomial)
+summary(testGlm2)
+```
+Prediction variable chosen: G2, traveltime
+
+3. State the regression equation.
+The probability of failing the test is:
+1 / (1 + e^(-(17.0684  - 1.8646  * G2)))
+
+4. What is the accuracy of your model? Use the entire data set for both training and validation.
+
+```{r}
+math3$moeld_prob <- predict(testGlm2, math3, type = "response")
+math4 <- math3  %>% mutate(predPF = 1 * (moeld_prob > 0.5) + 0 )
+math5 <- math4 %>% mutate(accurate = 1*( predPF == PF_F))
+sum(math5$accurate)/nrow(math5)
+```
+The accuracy of the model is 91.90%.
