@@ -115,3 +115,55 @@ math5 <- math4 %>% mutate(accurate = 1*( predPF == PF_F))
 sum(math5$accurate)/nrow(math5)
 ```
 The accuracy of the model is 91.90%.
+
+#Problem 3.
+##Step 1 and Step 2: Preparing and Exploring the Data
+```{r }
+wine <- read.csv("/Users/sunmengyue/Dropbox/2. Northeastern Unviersity/Fall2018/DA 5030 DataMining and Machine Learning/week8/Assignment 6/whitewines.csv")
+str(wine)
+hist(wine$quality)
+wine_train <- wine[1:3750, ]
+wine_test <- wine[3751:4898, ]
+```
+
+#Step 3 Training a Model on the Data
+```{r }
+library(rpart)
+m.rpart <- rpart(quality ~ ., data = wine_train)
+m.rpart
+```
+The total 3,750 examples started at the root node, of which 2,473 have alcohol < 10.85 and 1277 have alcohol >= 10.85. Since alcohol was used first in the tree, it is the single most important predictor of wine quality. The "*" are the leaf nodes.For instance, node 5 has a yval of 5.881912. When we use this tree for prediction, any wine samples with alcohol < 10.85 and volatile.acidity < 0.2425 would be predicted to have a quality value of 5.88.
+```{r }
+#visualizing the decision tree
+library(rpart.plot)
+rpart.plot(m.rpart, digits = 3)
+rpart.plot(m.rpart, digits = 4, fallen.leaves = TRUE, type = 3, extra = 101)
+```
+
+#Step 4 - Evaluating the Model Performance
+```{r }
+p.rpart <- predict(m.rpart, wine_test)
+summary(p.rpart)
+summary(wine_test$quality)
+```
+The model is doing well between the first and third quartile. Yet for the best and worst wine, the model does not correctly identify the cases. 
+
+```{r }
+cor(p.rpart, wine_test$quality)
+```
+The correlation of prediction model and the actual quality if 0.49. 
+
+```{r }
+#Measuring perfornace with the mean absolute error
+MAE <- function(actual, predicted) { mean(abs(actual - predicted)) }
+MAE(p.rpart, wine_test$quality)
+```
+As an MAE of 0.58 comes for the neural network model 
+
+##Step 5. Compute the RMSE
+```{r }
+sqerr <- (wine_test$quality - p.rpart)^2
+msqerr <- mean(sqerr)
+rmse <- sqrt(msqerr)
+rmse
+```
