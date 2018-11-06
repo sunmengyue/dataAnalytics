@@ -1,0 +1,407 @@
+---
+title: "Practicum 2"
+author: "Mengyue Sun"
+date: "11/3/2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Problem 1
+1. Download the Data
+```{r} 
+#Formating the training data
+adultTrain <- read.csv("/Users/sunmengyue/Dropbox/2. Northeastern Unviersity/Fall2018/DA 5030 DataMining and Machine Learning/Praticum2/adult.data.csv", header = FALSE, sep = ",")
+str(adultTrain)
+columnNames <- c("age", "workClass", "fnlwgt", "education", "educationNum",
+                 "maritalStatus", "occupation", "relationship", "race", "sex", 
+                 "capitalGain", "capitalLoss", "hoursPerWeek", "nativeCountry",
+                 "income")
+names(adultTrain) <- columnNames
+str(adultTrain)
+#change all the " ?" values to NA
+adultTrain[adultTrain == " ?"] <- NA
+#Delete all the NA cases
+adultTrain2 <- na.omit(adultTrain)
+str(adultTrain2)
+#There are 30162 cases remained after removing all the na value. 
+#The number of cases left fit the data description
+
+#Formating the test data
+adultTest <- read.csv("/Users/sunmengyue/Dropbox/2. Northeastern Unviersity/Fall2018/DA 5030 DataMining and Machine Learning/Praticum2/adult.test.csv", 
+                      header = FALSE, sep = ",")
+adultTest <- adultTest[-1, ]
+str(adultTest)
+columnNames <- c("age", "workClass", "fnlwgt", "education", "educationNum",
+                 "maritalStatus", "occupation", "relationship", "race", "sex", 
+                 "capitalGain", "capitalLoss", "hoursPerWeek", "nativeCountry",
+                 "income")
+names(adultTest) <- columnNames
+adultTest[adultTest == " ?"] <- NA
+adultTest2 <- na.omit(adultTest)
+str(adultTest2)
+#There are 15060 cases left after deleting the na cases, which fit the number in the description
+```
+
+2. Exploring the Training Dataset
+```{r }
+library(tidyverse)
+library(psych) # include pairs.panels
+
+#Select numeric variable
+numVarTrain <- select(adultTrain2, c(1, 3, 5, 11:13) )
+str(numVarTrain)
+#delete the " ?" level in workClass
+levels(adultTrain2$workClass)
+adultTrain2$workClass <- factor(adultTrain2$workClass, 
+                                levels = c(" Federal-gov", " Local-gov", " Never-worked", 
+                                " Private", " Self-emp-inc", " Self-emp-not-inc", 
+                                " State-gov", " Without-pay"))
+table(adultTrain2$occupation)
+adultTrain2$occupation <- adultTrain2$occupation
+
+#check the distribution of age
+hist(numVarTrain$age)
+
+#check the distribution of fnlwgt
+hist(numVarTrain$fnlwgt)#the distribution is severly right-skewed, we will try the log transformation
+fnlwgtTran <- log(numVarTrain$fnlwgt)
+hist(fnlwgtTran)
+#add fnlwgTran to the training dataset
+adultTrain2 <- mutate(adultTrain2, fnlwgtLog = fnlwgtTran)
+
+#check the distribution of educationNum
+hist(numVarTrain$educationNum) 
+
+#check the distribution of capitalGain
+hist(numVarTrain$capitalGain)#extremly right skewed
+capitalGainTrain <- log(numVarTrain$capitalGain)
+hist(capitalGainTrain)
+#add fnlwgTran to the training dataset
+adultTrain2 <- mutate(adultTrain2, capGainLog = capitalGainTrain)
+
+#check the distribution of capitalLoss
+hist(numVarTrain$capitalLoss)#extremely right skewed
+capitalLossTran <- log(numVarTrain$capitalLoss)
+hist(capitalLossTran)
+#add fnlwgTran to the training dataset
+adultTrain2 <- mutate(adultTrain2, capLossLog = capitalLossTran)
+
+#check the distribution of hoursPerWeek
+hist(numVarTrain$hoursPerWeek)
+
+numVarTrain2 <- select(adultTrain2, c(1, 5, 13, 16:18))
+
+#check the relation between each numeric variable
+pairs.panels(numVarTrain2)
+#we can drop the transformation of capital gain and capital loss from the numVarTrain2
+numVarTrain2 <- numVarTrain2[-c(5:6)]
+pairs.panels(numVarTrain2)
+#There is no obvious relationships between each variable 
+```
+
+```{r}
+#delete the " ?" level in nativeCountry
+table(adultTrain2$nativeCountry) 
+#only the " ?" has 0 cases. So we directly apply factor() to nativeCountry
+adultTrain2$nativeCountry <- factor(adultTrain2$nativeCountry)
+str(adultTrain2$nativeCountry)
+```
+
+##Prepare for the Test Dataset
+```{r }
+#Categorical Variable
+str(adultTest2)
+adultTest2$age <- as.numeric(adultTest2$age)#transfer age from factor to numeric
+
+levels(adultTest2$workClass) #include unwanted levels of "" and " ?"
+adultTest2$workClass <- factor(adultTest2$workClass, 
+                               levels = c( " Federal-gov", " Local-gov", " Never-worked",
+                                           " Private", " Self-emp-inc", 
+                                           " Self-emp-not-inc",  " State-gov", 
+                                           " Without-pay") )
+levels(adultTest2$workClass)#Now the levels are tidy
+
+levels(adultTest2$education)#include a unwanted level of ""
+table(adultTest2$education)#only the ""level has 0 frequency, we can directly apply factor()on education
+adultTest2$education <- factor(adultTest2$education)
+levels(adultTest2$education)
+
+table(adultTest2$maritalStatus)#include a unwanted level of ""
+adultTest2$maritalStatus <- factor(adultTest2$maritalStatus)
+levels(adultTest2$maritalStatus)
+
+table(adultTest2$occupation)#include unwanted levels of "" and " ?"
+adultTest2$occupation <- factor(adultTest2$occupation)
+levels(adultTest2$occupation)
+
+table(adultTest2$relationship) #include a unwanted  level of ""
+adultTest2$relationship <- factor(adultTest2$relationship)
+levels(adultTest2$relationship)
+
+table(adultTest2$race)#include a unwanted  level of ""
+adultTest2$race <- factor(adultTest2$race)
+levels(adultTest2$race)
+
+table(adultTest2$sex)#include a unwanted level of ""
+adultTest2$sex <- factor(adultTest2$sex)
+levels(adultTest2$sex)
+
+table(adultTest2$nativeCountry)#include unwanted level of "" and "?"
+adultTest2$nativeCountry <- factor(adultTest2$nativeCountry)
+levels(adultTest2$nativeCountry)
+
+table(adultTest2$income)#include a unwanted level of "" 
+adultTest2$income <- factor(adultTest2$income)
+levels(adultTest2$income)
+```
+
+```{r }
+#Numeric Variable
+hist(adultTest2$age)
+
+hist(adultTest2$educationNum)
+
+hist(adultTest2$fnlwgt)
+hist(log(adultTest2$fnlwgt))
+adultTest2 <- mutate(adultTest2, fnlwgtLogTest = log(adultTest2$fnlwgt))
+hist(adultTest2$fnlwgtLogTest)
+```
+
+3.Create a frequency and then a likelihood table for the categorical features in the data set. Build your own NaivadultTest2$workClasse Bayes classifier for those features.
+```{r }
+#Frequency table for workclass
+table(adultTrain2$workClass)
+prop.table(table(adultTrain2$workClass))
+#conditional probability table for workClass
+#1. devide age into 2 groups based on its median
+summary(adultTrain2$age)
+adultTrain2 <- mutate(adultTrain2,
+                      ageCat = ifelse(adultTrain2$age <= 37, "age1", "age2")) 
+adultTrain2$ageCat <- factor(adultTrain2$ageCat)
+table(adultTrain2$workClass, adultTrain2$ageCat)
+round(prop.table(table(adultTrain2$workClass, adultTrain2$ageCat)), 2)
+#P(FederalGov|age1) = P(FederalGov & age1) / P(age1) = 0.01 / 0.52 = 1.92%
+
+#Frequency table for education
+table(adultTrain2$education)
+round(prop.table(table(adultTrain2$education)), 2)
+#conditional probability tables
+table(adultTrain2$income, adultTrain2$education)
+round(prop.table(table(adultTrain2$income, adultTrain2$education)), 2)
+#P(income>50k|Masters) = P(income>50K & Masters) / P(Masters) = 0.02 / 0.05 = 0.4
+
+#Frequency table for maritalStatus
+table(adultTrain2$maritalStatus)
+round(prop.table(table(adultTrain2$maritalStatus)), 2)
+#conditional probability tables
+table(adultTrain2$ageCat, adultTrain2$maritalStatus)
+round(prop.table(table(adultTrain2$ageCat, adultTrain2$maritalStatus)), 2)
+#P(Divorced|age1) = P(Divorced & age1) / P(age1) = 0.04 / 0.5 = 0.08
+
+#Frequency table for relationship
+table(adultTrain2$relationship)
+round(prop.table(table(adultTrain2$relationship)), 2)
+#conditional probability tables
+table(adultTrain2$sex, adultTrain2$relationship)
+round(prop.table(table(adultTrain2$sex, adultTrain2$relationship)), 2)
+#P(OwnChild|Male) = P(OwnChild & Male) / P(Male) = 0.08 / 0.67 = 0.12 
+```
+
+4. Predict the binomial class membership for a white female adult who is a federal government worker with a bachelors degree who immigrated from India. Ignore any other features in your model. You must build your own Naive Bayes Classifier -- you may not use a package.
+```{r }
+predAdultTrain <- select(adultTrain2, income, race, sex, workClass, education, nativeCountry)
+#Total number of people whose income <= 50k
+belowIncomeNum <- nrow(filter(predAdultTrain, income == " <=50K")) 
+#P(income <= 50k) = 
+belowIncomeNum / nrow(predAdultTrain)
+
+#Total number of people whose income >50k
+aboveIncomeNum <- nrow(filter(predAdultTrain, income == " >50K")) 
+#P(income > 50k) = 
+aboveIncomeNum / nrow(predAdultTrain)
+#_________________________________________________________________________
+#For people whose income below or equal to 50k
+below50k <- filter(predAdultTrain, income == " <=50K")
+#P(white) = 
+nrow(filter(below50k, race == " White")) / nrow(below50k)
+#P(women) = 
+nrow(filter(below50k, sex == " Female")) / nrow(below50k)
+#P(FedGov) = 
+nrow(filter(below50k, workClass == " Federal-gov")) / nrow(below50k)
+#P(bachelor) = 
+nrow(filter(below50k, education == " Bachelors")) / nrow(below50k)
+#P(India)
+nrow(filter(below50k, nativeCountry == " India")) / nrow(below50k)
+
+#P(income<=50 | white & female & fedGov & bachelor & India) = 
+# P(income <= 50) * P(white) * P(female) * P(fedGov) * P(bachelor) *P (India) /
+# (P(income > 50) * P(white) * P(female) * P(fedGov) * P(bachelor) *P (India) +
+#  P(income <= 50) * P(white) * P(female) * P(fedGov) * P(bachelor) *P (India)) =
+0.7510775 * 0.8428534 * 0.3827139 * 0.02551426 * 0.1288073 * 0.002648539 / 
+  (0.2489225 * 0.910895 * 0.1481087 * 0.04861481 * 0.2831646 * 0.005327651 +
+     0.7510775 * 0.8428534 * 0.3827139 * 0.02551426 * 0.1288073 * 0.002648539)
+#The probability of having an income below or equal to 50k given that person is a white women who work at the federal gov having a bachelor degree and immigrating from india is 0.46
+#___________________________________________________________________________________
+#For people whose income above 50k
+above50k <- filter(predAdultTrain, income == " >50K")
+#P(white) = 
+nrow(filter(above50k, race == " White")) / nrow(above50k)
+#P(women) = 
+nrow(filter(above50k, sex == " Female")) / nrow(above50k)
+#P(FedGov) = 
+nrow(filter(above50k, workClass == " Federal-gov")) / nrow(above50k)
+#P(bachelor)
+nrow(filter(above50k, education == " Bachelors")) / nrow(above50k)
+#P(India)
+nrow(filter(above50k, nativeCountry == " India")) / nrow(above50k)
+#P(income>50 | white & female & fedGov & bachelor & India) = 
+# P(income > 50) * P(white) * P(female) * P(fedGov) * P(bachelor) *P (India) /
+# (P(income <= 50) * P(white) * P(female) * P(fedGov) * P(bachelor) *P (India) +
+#  P(income > 50) * P(white) * P(female) * P(fedGov) * P(bachelor) *P (India)) =
+0.2489225 * 0.910895 * 0.1481087 * 0.04861481 * 0.2831646 * 0.005327651 / 
+  (0.7510775 * 0.8428534 * 0.3827139 * 0.02551426 * 0.1288073 * 0.002648539 + 
+     0.2489225 * 0.910895 * 0.1481087 * 0.04861481 * 0.2831646 * 0.005327651)
+#The probability of having an income above to 50k given that person is a white women who work at the federal gov having a bachelor degree and immigrating from india is 0.54
+```
+
+5. Perform 10-fold cross validation on your algorithm to tune it and report the final accuracy results.
+```{r }
+library(modelr)
+library(purrr)
+library(e1071)
+set.seed(1)
+#combine the original training and validation data and conduct the 10-fold cross validation
+wholeAdult <- data.frame(rbind(adultTrain2[1:15], adultTest2[1:15]))
+adult_cv <- crossv_kfold(wholeAdult, 10)
+```
+
+#Problem 2
+1.Are there outliers in the data set? How do you identify outliers and how do you deal with them? Remove them but create a second data set with outliers removed. Keep the original data set.
+```{r }
+library(readxl)
+uffi <- read_excel("/Users/sunmengyue/Dropbox/2. Northeastern Unviersity/Fall2018/DA 5030 DataMining and Machine Learning/Praticum2/uffidata.xlsx")
+str(uffi)
+summary(uffi$`Sale Price`)
+#The outlier is any points greater than the: Q3 + 1.5IQR = 
+135000 + 1.5*(135000 - 102000)
+#any price greater than 184500 are outliers
+outliers <- which(uffi$`Sale Price` > 184500)
+outliers
+# I can impute the outliers with mean, median or mode. In this case I will delete these outliers
+uffi2 <- uffi[-outliers, ]
+summary(uffi2$`Sale Price`)
+```
+
+2. What are the correlations to the response variable and are there colinearities? Build a full correlation matrix.
+```{r }
+uffi2$`UFFI IN` <- factor(uffi2$`UFFI IN`)
+uffi2$`Brick Ext` <- factor(uffi2$`Brick Ext`)
+uffi2$`45 Yrs+` <- factor(uffi2$`45 Yrs+`)
+uffi2$`Central Air` <- factor(uffi2$`Central Air`)
+uffi2$Pool <- factor(uffi2$Pool)
+round(cor(uffi), 3)
+```
+
+3. What is the ideal multiple regression model for predicting home prices in this data set using the data set with outliers removed? Provide a detailed analysis of the model, including Adjusted R-Squared, RMSE, and p-values of principal components. Use backward elimination by p-value to build the model.
+```{r }
+# A multiple linear regression is the best for predicting the home price since the home price is a numeric variable
+library(fastDummies)
+uffi3 <- dummy_cols(uffi2)
+myModel <- step(lm(`Sale Price` ~ ., data = uffi3), direction = "backward")
+myModel
+summary(myModel)  
+#The adjusted Rsquare of the model is 0.6069, the p value of the model is 3.136e-16, which is less than 0.05, indicating our model is significant. The coefficients of intercept, yearsold, uffi in, bsmntFin_SF, EncPkSpace, and Living Area_SF are significant. 
+predPrice <-   -1.047e+07 + 5.242e+03  * 2012  -5.989e+03 + 1.253e+01 * 242.7 + 5.493e+03 * 1  + 3.833e+01 * 736.5 + 2.572e+04 
+sqerr <- (uffi2$`Sale Price` - predPrice)^2
+msqerr <- mean(sqerr)
+rmse <- sqrt(msqerr)
+rmse
+```
+
+4. On average, by how much do we expect UFFI to change the value of a property?
+```{r }
+ggplot(data = uffi2, aes(x = `UFFI IN`, y = `Sale Price`)) + geom_boxplot()
+uffi3 %>%
+  group_by(`UFFI IN`) %>%
+  summarise(mean = mean(`Sale Price`))
+#On average we can see the eastate with uffi is 104892.9, without uffi is 117525.4
+```
+
+5.If the home in question is older than 45 years old, doesn’t have a finished basement, has a lot area of 4000 square feet, has a brick exterior, 1 enclosed parking space, 1480 square feet of living space, central air, and no pool, what is its predicted value and what are the 95% confidence intervals of this home with UFFI and without UFFI?
+```{r }
+#with UFFI
+ -1.047e+07  +  5.242e+03 * 2012 -5.989e+03 * 1 + 1.253e+01 * 0 +  5.493e+03  * 1  +  3.833e+01 * 4000 + 2.563e+04 * 0
+#The 95% interval is scorePred + or - 1.96 * SE
+ 229728 -1.96 * 13420
+ 229728 +1.96 * 13420
+ #95% confidence interval for real eastate with UFFI is [203424.8, 256031.2]
+ 
+#without UFFI
+ -1.047e+07  +  5.242e+03 * 2012 -5.989e+03 * 0 + 1.253e+01 * 0 +  5.493e+03  * 1  +  3.833e+01 * 4000 + 2.563e+04 * 0
+ 235717 - 1.96 * 13420
+ 235717 + 1.96 * 13420
+ #95% confidence interval for real eastate without UFFI is [209413.8, 262020.2]
+```
+
+#Problem 3
+1. Divide the provided Titanic Survival Data into two subsets: a training data set and a test data set. Use whatever strategy you believe it best. Justify your answer.
+```{r }
+titanic <- read.csv("/Users/sunmengyue/Dropbox/2. Northeastern Unviersity/Fall2018/DA 5030 DataMining and Machine Learning/Praticum2/titanic_data.csv")
+#Data preparation
+titanic$Survived <- factor(titanic$Survived)
+str(titanic)
+set.seed(2112)
+trainData <- sample(891, 801)
+str(trainData)
+titanic_train <- titanic[trainData, ]
+titanic_test <- titanic[-trainData, ]
+
+#check the randomization
+prop.table(table(titanic_train$Survived))
+prop.table(table(titanic_test$Survived))
+#the proportion of survived and not survived are nearly equal in both the training and test dataset. So we are doing a good job in data randomization
+```
+
+2. Impute any missing values for the age variable using an imputation strategy of your choice. State why you chose that strategy and what others could have been used and why you didn't choose them.
+```{r }
+#use the mice::md.pattern to identify missing data
+library(mice)
+md.pattern(titanic_train)
+md.pattern(titanic_test) #From the pattern we see that missing data are in the age column
+#we are going to impute the missing data with median age
+library(Hmisc)
+titanic_train$Age <- impute(titanic_train$Age, median)
+titanic_test$Age <- impute(titanic_test$Age, median)
+md.pattern(titanic_train)
+md.pattern(titanic_test)
+```
+
+3. Construct a logistic regression model to predict the probability of a passenger surviving the Titanic accident. Test the statistical significance of all parameters and eliminate those that have a p-value > 0.05 using stepwise backward elimination.
+```{r }
+#create dummy variables
+titanic2 <- titanic_train[-c(1, 4, 9, 11 )]
+titanicGLM <- glm(Survived ~ ., data = titanic2, family = binomial)
+summary(titanicGLM)
+#taking variables with p > 0.05 out:
+titanicGLM2 <- glm(Survived ~ Pclass + Sex + Age + SibSp, data = titanic2, family = binomial)
+summary(titanicGLM2)
+```
+
+4. State the model as a regression equation.
+The probability of surviving on Titanic is:
+1 / (1 + e^(-( 5.285365 - 1.242851 * Pclass - 2.742127 * Sexmale - 0.039752 * Age - 0.378145 * SibSP)))
+
+5. Test the model against the test data set and determine its prediction accuracy (as a percentage correct).
+```{r }
+titanic_test$moeld_prob <- predict(titanicGLM2, titanic_test, type = "response")
+titanic_test <- titanic_test  %>% mutate(predSurvive = 1 * (moeld_prob > 0.5) + 0 )
+titanic_test <- titanic_test %>% mutate(accurate = 1*( predSurvive == Survived))
+sum(titanic_test$accurate)/nrow(titanic_test) #the accuracy rate is 74%
+```
+
+#Problem 4
+1. Elaborate on the use of kNN and Naive Bayes for data imputation. Explain in reasonable detail how you would use these algorithms to impute missing data and why it can work.
+We use KNN for missing values imputation is that the value of a single missing point can be approximated by its close points, because KNN is used for matching a point with its closest k neighbours. The number of the k needs to be considered because a low k will be influenced by data noise whereas a high k would lead to overffiting. The data needs to be normalized before analyzing so that features have the same influence in identifying neighbors. For numeirc features, Euclidean is the choice on varaibles of the same type and Mahattan if for different type. Categorical does not require other transformation. Naive Bayes is sensative to missing values.The missing features are ignore at the beginning, and the remaining values are goint to be used. Ignoring missing value is possible at the begining becasue it is equivlent to make the same weighted contribution. 
